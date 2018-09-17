@@ -1,7 +1,5 @@
 # Digital Ocean - Laravel
 
-An Ansible playbook used to installs and configure a droplet on DigitalOcean with [Laravel](https://laravel.com/) and its dependencies.
-
 ## Run a Playbook
 
 Add `vault.yml`
