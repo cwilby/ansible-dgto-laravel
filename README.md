@@ -35,10 +35,11 @@ app_repo_branch: master
 Add `playbook.yml`
 ```yml
 ---
-- name: Create a Laravel app on DigitalOcean.
-  vars_file:
+- name: Ensure application is live in production.
+  hosts: localhost
+  vars_files:
     - vault.yml
-  role:
+  roles:
     - cwilby.dgto-laravel
 ```
 
