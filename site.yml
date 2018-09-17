@@ -207,12 +207,3 @@
         chdir: "{{web_home}}/releases/live"
     
 - name: Ensure the app is live.
-  hosts: production
-  user: "{{sudo_user}}"
-  become: true
-  tasks:
-    - name: Ensure symlink exists for Nginx.
-      file:
-        src: "{{web_home}}/releases/live"
-        dest: "/var/www/{{domain}}"
-        state: link
