@@ -1,0 +1,243 @@
+---
+app_repo_url: "https://github.com/{{app_repo_owner}}/{{app_repo_name}}.git"
+domain: "{{app_name}}.{{app_tld}}"
+db_user_home: "/home/{{db_user}}"
+web_home: "/home/{{web_user}}"
+web_home_ssh: "{{web_home}}/.ssh"
+web_home_ssh_pk: "{{web_home_ssh}}/{{web_key_name}}"
+web_home_ssh_ppk: "{{web_home_ssh_pk}}.pub"
+
+# swap (https://github.com/geerlingguy/ansible-role-swap)
+swap_file_path: /swapfile
+swap_file_size_mb: '512'
+swap_swappiness: 60
+swap_file_state: present
+swap_file_create_command: "dd if=/dev/zero of={{ swap_file_path }} bs=1M count={{ swap_file_size_mb }}"
+swap_test_mode: False
+
+# mysql
+mysql_packages:
+  - mariadb-client
+  - mariadb-server
+  - python-mysqldb
+mysql_databases:
+  - name: "{{app_name}}"
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+mysql_users:
+  - name: "{{db_user}}"
+    password: "{{global_password}}"
+    priv: "*.*:ALL"
+  - name: "{{app_name}}"
+    password: "{{global_password}}"
+    priv: "{{app_name}}.*:ALL"
+overwrite_global_mycnf: yes
+mysql_bind_address: '0.0.0.0'
+mysql_binlog_format: "ROW"
+mysql_datadir: /var/lib/mysql
+mysql_enabled_on_startup: yes
+mysql_event_scheduler_state: "OFF"
+mysql_expire_logs_days: "10"
+mysql_group_concat_max_len: "1024"
+# Set .._buffer_pool_size up to 80% of RAM but beware of setting too high.
+mysql_innodb_buffer_pool_size: "256M"
+mysql_innodb_file_format: "barracuda"
+mysql_innodb_file_per_table: "1"
+mysql_innodb_flush_log_at_trx_commit: "1"
+mysql_innodb_large_prefix: "1"
+mysql_innodb_lock_wait_timeout: "50"
+mysql_innodb_log_buffer_size: "8M"
+# Set .._log_file_size to 25% of buffer pool size.
+mysql_innodb_log_file_size: "64M"
+mysql_join_buffer_size: "262144"
+mysql_key_buffer_size: "256M"
+mysql_log_file_group: mysql
+mysql_log: ""
+mysql_lower_case_table_names: "0"
+mysql_max_allowed_packet: "64M"
+mysql_max_binlog_size: "100M"
+mysql_max_connections: "151"
+mysql_max_heap_table_size: "16M"
+mysql_myisam_sort_buffer_size: "64M"
+mysql_mysqldump_max_allowed_packet: "64M"
+mysql_port: "3306"
+mysql_query_cache_limit: "1M"
+mysql_query_cache_size: "16M"
+mysql_query_cache_type: "0"
+mysql_read_buffer_size: "1M"
+mysql_read_rnd_buffer_size: "4M"
+mysql_replication_master: ''
+mysql_replication_role: ''
+mysql_root_home: /root
+mysql_root_password_update: no
+mysql_root_password: "{{global_password}}"
+mysql_root_username: root
+mysql_server_id: "1"
+mysql_skip_name_resolve: no
+mysql_slow_query_log_enabled: no
+mysql_slow_query_log_file: "{{db_user_home}}/.mysql/slow-queries.log"
+mysql_slow_query_time: "2"
+mysql_sort_buffer_size: "1M"
+mysql_sql_mode: ''
+mysql_table_open_cache: "256"
+mysql_thread_cache_size: "8"
+mysql_tmp_table_size: "16M"
+mysql_user_home: /root
+mysql_user_name: root
+mysql_user_password: "{{global_password}}"
+mysql_user_password_update: no
+mysql_wait_timeout: "28800"
+mysql_replication_user: []
+
+# nginx (https://github.com/geerlingguy/ansible-role-nginx)
+nginx_remove_default_vhost: true
+nginx_server_names_hash_bucket_size: "128"
+nginx_vhosts:
+  - listen: "80 default_server"
+    server_name: "{{domain}}"
+    root: "/var/www/{{domain}}/public"
+    index: "index.php index.html index.htm"
+    state: "present"
+    template: "{{nginx_vhost_template}}"
+
+    # here
+    extra_parameters: |
+      location / {
+          try_files $uri $uri/ /index.php$is_args$args;
+      }
+      location ~ \.php$ {
+          fastcgi_split_path_info ^(.+\.php)(/.+)$;
+          fastcgi_pass unix:/var/run/php/php7.1-fpm.sock;
+          fastcgi_index index.php;
+          fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+          include fastcgi_params;
+      }
+
+# php (https://github.com/geerlingguy/ansible-role-php)
+php_allow_url_fopen: "On"
+php_date_timezone: "America/Chicago"
+php_date_timezone: "UTC"
+php_disable_functions: []
+php_display_errors: "Off"
+php_display_startup_errors: "On"
+php_error_reporting: "E_ALL & ~E_DEPRECATED & ~E_STRICT"
+php_expose_php: "On"
+php_file_uploads: "On"
+php_fpm_daemon: "php{{php_version}}-fpm"      
+php_fpm_pool_group: "www-data" # default varies by OS
+php_fpm_pool_user: "{{web_user}}" # default varies by OS
+php_max_execution_time: "90"
+php_max_file_uploads: "20"
+php_max_input_time: "60"
+php_max_input_vars: "1000"
+php_memory_limit: "512M"
+php_output_buffering: "4096"
+php_packages_state: latest
+php_post_max_size: "32M"
+php_realpath_cache_size: "32K"
+php_sendmail_path: "/usr/sbin/sendmail -t -i"
+php_session_cookie_lifetime: 0
+php_session_gc_divisor: 1000
+php_session_gc_maxlifetime: 1440
+php_session_gc_probability: 1
+php_session_save_handler: files
+php_session_save_path: ''
+php_short_open_tag: false
+php_upload_max_filesize: "256M"
+php_version: "7.1"              # also change nginx config below vv
+php_webserver_daemon: "nginx"
+php_packages: [
+  libpcre3-dev,
+  php-mbstring,
+  "php{{php_version}}-apcu",
+  "php{{php_version}}-cli",
+  "php{{php_version}}-common",
+  "php{{php_version}}-curl",
+  "php{{php_version}}-dev",
+  "php{{php_version}}-fpm",
+  "php{{php_version}}-gd",
+  "php{{php_version}}-imap",
+  "php{{php_version}}-intl",
+  "php{{php_version}}-json",
+  "php{{php_version}}-mbstring",
+  "php{{php_version}}-mcrypt",
+  "php{{php_version}}-mysql",
+  "php{{php_version}}-opcache",
+  "php{{php_version}}-pdo",
+  "php{{php_version}}-xml",
+  "php{{php_version}}-zip",
+]
+
+php_conf_paths:
+  - "/etc/php/{{php_version}}/fpm"
+  - "/etc/php/{{php_version}}/cli"
+php_extension_conf_paths:
+  - "/etc/php/{{php_version}}/fpm/conf.d"
+  - "/etc/php/{{php_version}}/cli/conf.d"
+
+# redis (https://github.com/geerlingguy/ansible-role-redis)
+redis_port: 6379
+redis_bind_interface: 127.0.0.1
+redis_unixsocket: ''
+redis_timeout: 300
+redis_loglevel: "notice"
+redis_logfile: /var/log/redis/redis-server.log
+redis_databases: 16
+redis_rdbcompression: "yes"
+redis_dbfilename: dump.rdb
+redis_dbdir: /var/lib/redis
+redis_maxmemory: 0
+redis_maxmemory_policy: "noeviction"
+redis_maxmemory_samples: 5
+redis_appendonly: "no"
+redis_appendfsync: "everysec"
+redis_includes: []
+redis_requirepass: ""
+redis_save:
+  - 900 1
+  - 300 10
+  - 60 10000
+redis_disabled_commands: []
+#  - FLUSHDB
+#  - FLUSHALL
+#  - KEYS
+#  - PEXPIRE
+#  - DEL
+#  - CONFIG
+#  - SHUTDOWN
+#  - BGREWRITEAOF
+#  - BGSAVE
+#  - SAVE
+#  - SPOP
+#  - SREM
+#  - RENAME
+#  - DEBUG
+
+# git (https://github.com/geerlingguy/ansible-role-git)
+repo_url: "{{app_repo_url}}"
+git_branch: "{{app_repo_branch}}"
+workspace: /root
+git_enablerepo: ""
+git_packages:
+  - git
+  - git-svn
+
+# composer (https://github.com/geerlingguy/ansible-role-composer)
+composer_path: /usr/local/bin/composer
+composer_add_to_path: true
+composer_add_project_to_path: true
+composer_project_path: "/var/www/{{app_name}}/vendor/bin"
+composer_keep_updated: false
+composer_version: ''
+composer_home_path: '{{web_home}}/.composer'
+composer_home_owner: "{{web_user}}"
+composer_home_group: www-data
+composer_github_oauth_token: "{{github_token}}"
+
+# nodejs (https://github.com/geerlingguy/ansible-role-nodejs)
+nodejs_version: "8.x"
+nodejs_install_npm_user: "{{web_user}}"
+npm_config_prefix: "/usr/local/lib/npm"
+npm_config_unsafe_perm: "false"
+nodejs_npm_global_packages: []
+nodejs_package_json_path: ""

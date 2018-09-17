@@ -1,0 +1,218 @@
+---
+- name: Ensure infrastructure exists.
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Ensure Droplet exists on DigitalOcean.
+      digital_ocean:
+        state: present
+        api_token: "{{dgto_token}}"
+        unique_name: yes
+        command: droplet
+        name: "{{droplet_name}}"
+        size_id: "{{droplet_size}}"
+        image_id: "{{droplet_image}}"
+        region_id: "{{droplet_region}}"
+        ssh_key_ids:
+          - "{{droplet_ssh_pk}}"
+      register: result
+    - name: Ensure host exists in session inventory.
+      add_host:
+        name: "{{result.droplet.ip_address}}"
+        groups: production
+      when: result.droplet is defined
+      changed_when: false
+    - name: Ensure DNS record exists on DigitalOcean.
+      digital_ocean_domain:
+        state: present
+        api_token: "{{dgto_token}}"
+        name: "{{domain}}"
+        ip: "{{result.droplet.ip_address}}"
+      when: result.droplet is defined
+      changed_when: false
+
+- name: Ensure server has sudo, mysql and web user.
+  hosts: production
+  remote_user: root
+  gather_facts: false
+  tasks:
+    - name: Ensure SSH is active.
+      local_action: "wait_for port=22 host={{inventory_hostname}}"
+    - name: Ensure Python 2.x is installed.
+      raw: which python || apt-get update && apt-get install -qq -y python-simplejson
+      register: python_check
+      changed_when: not python_check.stdout | search('/usr/bin/python')
+    - name: Ensure PHP 7.1 repository is added.
+      apt_repository: 
+        repo: "ppa:ondrej/php"
+    - name: Ensure sudo user exists.
+      user:
+        name: "{{sudo_user}}"
+        password: "{{global_password | password_hash('sha512')}}"
+        state: present
+        createhome: yes
+        groups: "sudo"
+        append: yes
+        shell: "/bin/bash"
+    - name: Ensure sudo user has authorized_keys.
+      authorized_key:
+        user: "{{sudo_user}}"
+        key: "{{github_keys}}"
+    - name: Ensure mysql user exists.
+      user:
+        name: "{{db_user}}"
+        state: present
+        createhome: yes
+        groups: "www-data"
+        append: yes
+        shell: "/bin/bash"
+        comment: "Comment"
+    - name: Ensure mysql user has authorized_keys. 
+      authorized_key:
+        user: "{{db_user}}"
+        key: "{{github_keys}}"
+    - name: Ensure web user exists.
+      user:
+        name: "{{web_user}}"
+        state: present
+        createhome: yes
+        groups: "www-data"
+        append: yes
+        shell: "/bin/bash"
+        comment: "Comment"
+    - name: Ensure web user has authorized_keys.
+      authorized_key:
+        user: "{{web_user}}"
+        key: "{{github_keys}}"
+
+- name: Ensure geerlingguy roles are installed.
+  hosts: production
+  user: "{{sudo_user}}"
+  become: true
+  pre_tasks:
+    - name: Ensure mysql user has mysql config folder in home.
+      file:
+        path: "{{db_user_home}}/.mysql"
+        state: directory
+        mode: 0755
+    - name: Ensure web user has composer config folder in home.
+      file:
+        path: "{{web_home}}/.composer"
+        state: directory
+        mode: 0755
+    - name: Ensure composer is added to web user path.
+      lineinfile: 
+        dest: "{{web_home}}/.bashrc"
+        state: present
+        line: 'export PATH="$PATH:$HOME/.composer/vendor/bin"'
+  roles:
+    - geerlingguy.git
+    - geerlingguy.swap
+    - geerlingguy.mysql
+    - geerlingguy.redis
+    - geerlingguy.php
+    - geerlingguy.php-mysql
+    - geerlingguy.composer
+    - geerlingguy.nodejs
+    - geerlingguy.nginx
+
+- name: Ensure the app is ready to go live.
+  hosts: production
+  user: "{{web_user}}"
+  tasks:
+    - name: Ensure web user has SSH dir in home.
+      file:
+        path: '{{ web_home_ssh }}'
+        owner: '{{ web_user }}'
+        mode: 0700
+    - name: Ensure web user has SSH config.
+      template:
+        src: templates/ssh_config.j2
+        dest: "{{web_home_ssh}}/config"
+        owner: "{{web_user}}"
+        mode: 0644
+    - name: Ensure web user has public key.
+      shell: ssh-keygen -t rsa -b 4096 -C "{{web_user}}@{{app_name}}.{{app_tld}}" -f {{ web_home_ssh_pk }} -N ''
+      args:
+        creates: '{{ web_home_ssh_pk }}'
+    - name: Ensure the keys have restricted permissions.
+      file:
+        path: '{{ item }}'
+        owner: '{{ web_user }}'
+        mode: 0600
+      with_items:
+      - '{{ web_home_ssh_pk }}'
+      - '{{ web_home_ssh_ppk }}'
+    - name: Ensure SSH agent exists.
+      shell: echo "ssh-agent = $(ssh-agent)"
+      when: '"SSH_AUTH_SOCK" in ansible_env'
+    - name: Ensure SSH agent is running.
+      shell: eval $(ssh-agent)
+      when: '"SSH_AUTH_SOCK" in ansible_env'
+    - name: Copy SSH public key.
+      shell: "cat {{web_home_ssh_ppk}}"
+      register: "ssh_public_key"
+    - name: Ensure deploy key removed from GitHub.
+      github_deploy_key:
+        owner: "{{app_repo_owner}}"
+        repo: "{{app_repo_name}}"
+        name: "web deploy key"
+        key: "{{ssh_public_key.stdout}}"
+        force: yes
+        token: "{{github_token}}"
+        state: absent
+    - name: Ensure deploy key added to GitHub.
+      github_deploy_key:
+        owner: "{{app_repo_owner}}"
+        repo: "{{app_repo_name}}"
+        name: "web deploy key"
+        key: "{{ssh_public_key.stdout}}"
+        read_only: yes
+        token: "{{github_token}}"
+    - name: Ensure the releases folder is present.
+      file:
+        path: "{{web_home}}/releases"
+        owner: "{{web_user}}"
+        mode: 0700
+        state: present
+    - name: Ensure the releases folder has the correct permissions.
+      shell: "sudo chown -R web:www-data {{web_home}}/releases"
+      args:
+        chdir: "{{web_home}}/releases"
+    - name: Ensure application has been cloned from GitHub.
+      git:
+        accept_hostkey: True
+        repo: "{{app_repo_url}}"
+        dest: "{{web_home}}/releases/live"
+        version: "{{app_repo_branch}}"
+    - name: Ensure production environment variables are set.
+      shell: "cp .env.production .env"
+      args:
+        chdir: "{{web_home}}/releases/live"
+    - name: Ensure composer dependencies are installed.
+      shell: composer install --optimize-autoloader --no-dev
+      args:
+        chdir: "{{web_home}}/releases/live"
+    - name: Ensure laravel cache cleared.
+      shell: php artisan config:cache
+      args:
+        chdir: "{{web_home}}/releases/live"
+    - name: Ensure application key generated.
+      shell: php artisan key:generate
+      args:
+        chdir: "{{web_home}}/releases/live"
+    - name: Ensure web application has been built.
+      shell: npm run production
+      args:
+        chdir: "{{web_home}}/releases/live"
+    
+- name: Ensure the app is live.
+  hosts: production
+  user: "{{sudo_user}}"
+  become: true
+  tasks:
+    - name: Ensure symlink exists for Nginx.
+      file:
+        src: "{{web_home}}/releases/live"
+        dest: "/var/www/{{domain}}"
+        state: link
