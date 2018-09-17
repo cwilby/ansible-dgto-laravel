@@ -1,5 +1,5 @@
 ---
-app_repo_url: "https://github.com/{{app_repo_owner}}/{{app_repo_name}}.git"
+app_repo_url: "git@github.com:{{app_repo_owner}}/{{app_repo_name}}.git"
 domain: "{{app_name}}.{{app_tld}}"
 db_user_home: "/home/{{db_user}}"
 web_home: "/home/{{web_user}}"

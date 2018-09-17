@@ -16,7 +16,7 @@
         region_id: "{{droplet_region}}"
         ssh_key_ids:
           - "{{droplet_ssh_pk}}"
-        register: result
+      register: result
     - name: Ensure host exists in session inventory.
       add_host:
         name: "{{result.droplet.ip_address}}"
@@ -173,22 +173,40 @@
         key: "{{ssh_public_key.stdout}}"
         read_only: yes
         token: "{{github_token}}"
-    - name: Ensure the releases folder is present.
+    - name: Ensure the releases folder is present and belongs to web user.
+      become: true
+      remote_user: "{{sudo_user}}"
       file:
         path: "{{web_home}}/releases"
         owner: "{{web_user}}"
-        mode: 0700
-        state: present
-    - name: Ensure the releases folder has the correct permissions.
-      shell: "sudo chown -R web:www-data {{web_home}}/releases"
-      args:
-        chdir: "{{web_home}}/releases"
-    - name: Ensure application has been cloned from GitHub.
+        group: www-data
+        mode: 0755
+        state: directory
+    - name: "Ensure application has been cloned from {{app_repo_url}}."
       git:
         accept_hostkey: True
+        key_file: "{{web_home_ssh_pk}}"
         repo: "{{app_repo_url}}"
         dest: "{{web_home}}/releases/live"
         version: "{{app_repo_branch}}"
+    - name: Ensure the live folder is present and belongs to web user.
+      become: true
+      remote_user: "{{sudo_user}}"
+      file:
+        path: "{{web_home}}/releases/live"
+        owner: "{{web_user}}"
+        group: www-data
+        mode: 0755
+        state: directory
+    - name: Ensure the storage folder has permissions set properly.
+      become: true
+      remote_user: "{{sudo_user}}"
+      file:
+        path: "{{web_home}}/releases/live/storage"
+        owner: "{{web_user}}"
+        group: www-data
+        mode: 0700
+        state: directory
     - name: Ensure production environment variables are set.
       shell: "cp .env.production .env"
       args:
