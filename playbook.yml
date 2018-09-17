@@ -1,6 +1,7 @@
 ---
 - name: Ensure infrastructure exists.
   hosts: localhost
+  vars_files: group_vars/vault.yml
   gather_facts: false
   tasks:
     - name: Ensure Droplet exists on DigitalOcean.
@@ -15,7 +16,7 @@
         region_id: "{{droplet_region}}"
         ssh_key_ids:
           - "{{droplet_ssh_pk}}"
-      register: result
+        register: result
     - name: Ensure host exists in session inventory.
       add_host:
         name: "{{result.droplet.ip_address}}"
@@ -33,6 +34,7 @@
 
 - name: Ensure server has sudo, mysql and web user.
   hosts: production
+  vars_files: group_vars/vault.yml
   remote_user: root
   gather_facts: false
   tasks:
@@ -87,6 +89,7 @@
 
 - name: Ensure geerlingguy roles are installed.
   hosts: production
+  vars_files: group_vars/vault.yml
   user: "{{sudo_user}}"
   become: true
   pre_tasks:
@@ -118,6 +121,7 @@
 
 - name: Ensure the app is ready to go live.
   hosts: production
+  vars_files: group_vars/vault.yml
   user: "{{web_user}}"
   tasks:
     - name: Ensure web user has SSH dir in home.
@@ -205,5 +209,15 @@
       shell: npm run production
       args:
         chdir: "{{web_home}}/releases/live"
-    
+
 - name: Ensure the app is live.
+  hosts: production
+  vars_files: group_vars/vault.yml
+  user: "{{sudo_user}}"
+  become: true
+  tasks:
+    - name: Ensure symlink exists for Nginx.
+      file:
+        src: "{{web_home}}/releases/live"
+        dest: "/var/www/{{domain}}"
+        state: link 
