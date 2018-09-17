@@ -1,0 +1,11 @@
+---
+dependencies:
+  - geerlingguy.composer
+  - geerlingguy.git
+  - geerlingguy.redis
+  - geerlingguy.mysql
+  - geerlingguy.nginx
+  - geerlingguy.nodejs
+  - geerlingguy.php
+  - geerlingguy.php-mysql
+  - geerlingguy.swap
