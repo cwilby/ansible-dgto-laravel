@@ -32,92 +32,92 @@
       when: result.droplet is defined
       changed_when: false
 
-# - name: Ensure server has sudo, mysql and web user.
-#   hosts: production
-#   vars_files: group_vars/vault.yml
-#   remote_user: root
-#   gather_facts: false
-#   tasks:
-#     - name: Ensure SSH is active.
-#       local_action: "wait_for port=22 host={{inventory_hostname}}"
-#     - name: Ensure Python 2.x is installed.
-#       raw: which python || apt-get update && apt-get install -qq -y python-simplejson
-#       register: python_check
-#       changed_when: not python_check.stdout | search('/usr/bin/python')
-#     - name: Ensure PHP 7.1 repository is added.
-#       apt_repository: 
-#         repo: "ppa:ondrej/php"
-#     - name: Ensure sudo user exists.
-#       user:
-#         name: "{{sudo_user}}"
-#         password: "{{global_password | password_hash('sha512')}}"
-#         state: present
-#         createhome: yes
-#         groups: "sudo"
-#         append: yes
-#         shell: "/bin/bash"
-#     - name: Ensure sudo user has authorized_keys.
-#       authorized_key:
-#         user: "{{sudo_user}}"
-#         key: "{{github_keys}}"
-#     - name: Ensure mysql user exists.
-#       user:
-#         name: "{{db_user}}"
-#         state: present
-#         createhome: yes
-#         groups: "www-data"
-#         append: yes
-#         shell: "/bin/bash"
-#         comment: "Comment"
-#     - name: Ensure mysql user has authorized_keys. 
-#       authorized_key:
-#         user: "{{db_user}}"
-#         key: "{{github_keys}}"
-#     - name: Ensure web user exists.
-#       user:
-#         name: "{{web_user}}"
-#         state: present
-#         createhome: yes
-#         groups: "www-data"
-#         append: yes
-#         shell: "/bin/bash"
-#         comment: "Comment"
-#     - name: Ensure web user has authorized_keys.
-#       authorized_key:
-#         user: "{{web_user}}"
-#         key: "{{github_keys}}"
+- name: Ensure server has sudo, mysql and web user.
+  hosts: production
+  vars_files: group_vars/vault.yml
+  remote_user: root
+  gather_facts: false
+  tasks:
+    - name: Ensure SSH is active.
+      local_action: "wait_for port=22 host={{inventory_hostname}}"
+    - name: Ensure Python 2.x is installed.
+      raw: which python || apt-get update && apt-get install -qq -y python-simplejson
+      register: python_check
+      changed_when: not python_check.stdout | search('/usr/bin/python')
+    - name: Ensure PHP 7.1 repository is added.
+      apt_repository: 
+        repo: "ppa:ondrej/php"
+    - name: Ensure sudo user exists.
+      user:
+        name: "{{sudo_user}}"
+        password: "{{global_password | password_hash('sha512')}}"
+        state: present
+        createhome: yes
+        groups: "sudo"
+        append: yes
+        shell: "/bin/bash"
+    - name: Ensure sudo user has authorized_keys.
+      authorized_key:
+        user: "{{sudo_user}}"
+        key: "{{github_keys}}"
+    - name: Ensure mysql user exists.
+      user:
+        name: "{{db_user}}"
+        state: present
+        createhome: yes
+        groups: "www-data"
+        append: yes
+        shell: "/bin/bash"
+        comment: "Comment"
+    - name: Ensure mysql user has authorized_keys. 
+      authorized_key:
+        user: "{{db_user}}"
+        key: "{{github_keys}}"
+    - name: Ensure web user exists.
+      user:
+        name: "{{web_user}}"
+        state: present
+        createhome: yes
+        groups: "www-data"
+        append: yes
+        shell: "/bin/bash"
+        comment: "Comment"
+    - name: Ensure web user has authorized_keys.
+      authorized_key:
+        user: "{{web_user}}"
+        key: "{{github_keys}}"
 
-# - name: Ensure geerlingguy roles are installed.
-#   hosts: production
-#   vars_files: group_vars/vault.yml
-#   user: "{{sudo_user}}"
-#   become: true
-#   pre_tasks:
-#     - name: Ensure mysql user has mysql config folder in home.
-#       file:
-#         path: "{{db_user_home}}/.mysql"
-#         state: directory
-#         mode: 0755
-#     - name: Ensure web user has composer config folder in home.
-#       file:
-#         path: "{{web_home}}/.composer"
-#         state: directory
-#         mode: 0755
-#     - name: Ensure composer is added to web user path.
-#       lineinfile: 
-#         dest: "{{web_home}}/.bashrc"
-#         state: present
-#         line: 'export PATH="$PATH:$HOME/.composer/vendor/bin"'
-#   roles:
-#     - geerlingguy.git
-#     - geerlingguy.swap
-#     - geerlingguy.mysql
-#     - geerlingguy.redis
-#     - geerlingguy.php
-#     - geerlingguy.php-mysql
-#     - geerlingguy.composer
-#     - geerlingguy.nodejs
-#     - geerlingguy.nginx
+- name: Ensure geerlingguy roles are installed.
+  hosts: production
+  vars_files: group_vars/vault.yml
+  user: "{{sudo_user}}"
+  become: true
+  pre_tasks:
+    - name: Ensure mysql user has mysql config folder in home.
+      file:
+        path: "{{db_user_home}}/.mysql"
+        state: directory
+        mode: 0755
+    - name: Ensure web user has composer config folder in home.
+      file:
+        path: "{{web_home}}/.composer"
+        state: directory
+        mode: 0755
+    - name: Ensure composer is added to web user path.
+      lineinfile: 
+        dest: "{{web_home}}/.bashrc"
+        state: present
+        line: 'export PATH="$PATH:$HOME/.composer/vendor/bin"'
+  roles:
+    - geerlingguy.git
+    - geerlingguy.swap
+    - geerlingguy.mysql
+    - geerlingguy.redis
+    - geerlingguy.php
+    - geerlingguy.php-mysql
+    - geerlingguy.composer
+    - geerlingguy.nodejs
+    - geerlingguy.nginx
 
 - name: Ensure the app is ready to go live.
   hosts: production
@@ -182,31 +182,32 @@
         group: www-data
         mode: 0755
         state: directory
-    - name: "Ensure application has been cloned from {{app_repo_url}}."
+    - name: Ensure application has been cloned via git."
       git:
         accept_hostkey: True
         key_file: "{{web_home_ssh_pk}}"
         repo: "{{app_repo_url}}"
         dest: "{{web_home}}/releases/live"
         version: "{{app_repo_branch}}"
-    - name: Ensure the live folder is present and belongs to web user.
+    - name: Ensure app directory belongs to web user.
       become: true
       remote_user: "{{sudo_user}}"
       file:
         path: "{{web_home}}/releases/live"
         owner: "{{web_user}}"
         group: www-data
-        mode: 0755
+        mode: 2750
         state: directory
-    - name: Ensure the storage folder has permissions set properly.
+    - name: Ensure app contents have correct ownership and permissions.
       become: true
       remote_user: "{{sudo_user}}"
-      file:
-        path: "{{web_home}}/releases/live/storage"
-        owner: "{{web_user}}"
-        group: www-data
-        mode: 0700
-        state: directory
+      shell: |
+        find . -type f -exec chmod 740 {} \;
+        find . -type d -exec chmod 2750 {} \;
+        sudo chgrp -R www-data storage bootstrap/cache
+        sudo chmod -R ug+rwx storage bootstrap/cache
+      args:
+        chdir: "{{web_home}}/releases/live"    
     - name: Ensure production environment variables are set.
       shell: "cp .env.production .env"
       args:
