@@ -1,0 +1,10 @@
+---
+- geerlingguy.git
+- geerlingguy.swap
+- geerlingguy.mysql
+- geerlingguy.redis
+- geerlingguy.php
+- geerlingguy.php-mysql
+- geerlingguy.composer
+- geerlingguy.nodejs
+- geerlingguy.nginx
